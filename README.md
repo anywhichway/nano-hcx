@@ -4,7 +4,7 @@ JavaScript Template Literals in HTML
 
 Core Library:
 
-	1) ES 2017 - 6.1K raw, 3.5K minify, 1.6k gzip
+	1) ES 2017 - 6.1K raw, 3.4K minify, 1.6k gzip
 	
 # Contents
 
@@ -62,7 +62,9 @@ not necessary.
 
 6) Supports server side rendering via a pre-built Express rendering engine.
 
-7) Is far smaller, and we think simpler and more flexible, than many other options.
+7) Sanitizes HTML using DOMPurify or a sanitizer of your choice.
+
+8) Is far smaller, and we think simpler and more flexible, than many other options.
 
 # Installation
 
@@ -91,12 +93,12 @@ In the most simple case, a document body can be bound to a model and rendered as
 ```html
 <html>
 <head>
-<script src="../nano-hcx.js" type="text/javascript"></script>
-<script>
-	var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
-</script>
+	<script src="../nano-hcx.js" type="text/javascript"></script>
+	<script>
+		var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
+	</script>
 </head>
-<body onload="nHCX.render(document.body,{data})">
+	<body onload="nHCX.render(document.body,{data})">
 	${name} has these children: ${data.children.join(",")}
 	</body>
 </html>
@@ -111,37 +113,42 @@ tag with type `text/hcx` to wrap your code as shown in `./examples/table.html` b
 ```html
 <html>
 <head>
-<script src="../nano-hcx.js" type="text/javascript"></script>
-<script>
-	var data = {name:"joe",age:27,children:["mary","jane","jack"]};
-</script>
+	<script src="../nano-hcx.js" type="text/javascript"></script>
+	<script>
+		var data = {name:"joe",age:27,children:["mary","jane","jack"]};
+	</script>
 </head>
 <body onload="nHCX.render(document.body,{data})">
 	${name} has these children:
-	<script type="text/hcx>
+	<script type="text/hcx">
 	<table>
 	${
 		children.reduce((accum,item) => accum +=`<tr><td>${item}</td></tr>`,"")
 	}
 	</table>
 	</script>
-	</body>
+</body>
 </html>
 ```
 
 Although it is possible to make individual elements reactive in `nano-hcx`, the default approach is to wrap data as a `reactor`. This way
-any element in which the data appears will re-render if the data changes as shown in `./examples/reactor.html`.
+any element in which the data appears will re-render if the data changes as shown in `./examples/reactor.html`. 
+
+It is not really necessary in this small example, but you may notice the `removeAttribute` call in the on-load. If you are using a DOM 
+node as its own replacement, the node will render in an unresolved state first. For large nodes, this may create an odd UI containing 
+may `${ ... }` delimited expressions. By starting the node in a hidden state you can avoid this. You should also typically be more targetted
+in your use of `render` than providing an entire document body.
 
 
 ```html
 <html>
 <head>
-<script src="../nano-hcx.js" type="text/javascript"></script>
-<script>
-	var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
-</script>
+	<script src="../nano-hcx.js" type="text/javascript"></script>
+	<script>
+		var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
+	</script>
 </head>
-<body onload="nHCX.render(document.body,{data})">
+<body onload="nHCX.render(document.body,{data})[0].removeAttribute('hidden')" hidden>
 	${name} has these children:
 	<ul>
 	<script type="text/hcx">
@@ -151,12 +158,12 @@ any element in which the data appears will re-render if the data changes as show
 	</script>
 	</ul>
 	<script>
-		(() => {
+		setTimeout(() => {
 			alert("Ready for change?");
 			data.children[0] = "jim";
-		});
+		},1000);
 	</script>
-	</body>
+</body>
 </html>
 ```
 
@@ -179,9 +186,9 @@ the sections of the HTML that reference the properties of the data changed.
 
 * `shadow` If provided, the `source` is rendered into a shadow DOM rooted in the `target`. The value of `shadow` can be 'open' or 'closed'. By using styles and scripts nested
 inside `<template>` tags as the `source`, the style and scripts can have their impact isolated to the shadow DOM. When scripts are processed by `hcx` in a
-shadow scope, they have `this` set to the `target` in which they are rendered. Also see the special attribute `:scoped`.
+shadow scope, they have `shadowHost` available as a variable set to the `target` in which they are rendered. Also see the special attribute `:scoped`.
 
-* `santize` The function to use to sanitize HTML to improve security. If `DOMPurfiy` is present int he current scope, it wil automatically be used unless `santize` 
+* `santize` The function to use to sanitize HTML to improve security. If `DOMPurfiy` is present in the scope of `render` invocation, it will automatically be used unless `sanitize` 
 is set to something else. The default value for `sanitize` without `DOMPurify` is, `(html) => html`, essentially a no-op.
 
 * `scripts` A boolean indicating if standard JavaScript blocks should be evaluated when processing the `source`. This can be very powerful; however, it brings with it
@@ -197,22 +204,58 @@ If primitive data is passed in, just returns the primitive data.
 
 # Special Attributes
 
+`:assign=&gt;object>` - Uses `Object.assign` to augment the current `data` with the parsed value of `&gt;object>`. The new values apply at any time after the attribute has been evaluated. For a first
+rendering, this will mean the duration of the document. For subsequent renderings, the augmentation will be available earlier in the document.
+
 `:data=&gt;object>` - Sets the `data` for the scope of the element on which the attribute exists to the parsed value of &gt;object>. Make sure to put quotes around theobject properties, e.g.
 
 ```
 <div :data='{"name":"joe","age":27}'>Name: ${name} Age: ${age}</div>
 ```
 
-`:assign=&gt;object>` - Uses `Object.assign` to augment the current `data` with the parsed value of `&gt;object>`. The new values apply at any time after the attribute has been evaluated. For a first
-rendering, this will mean the duration of the document. For subsequent renderings, the augmentation will be available earlier in the document.
-
 `data-&gt;property>=&gt;value> - Sets the `property` on the current data to the `value`.
 
 `:reactive` - Makes the data associated with the element reactive to changes so that the element will be automatically re-rendered for changes. Since the `Proxy` generated by `:reactive` is not
 externally accessable, its use only makes sense in the context of child `<script>` contents within the scope of the element.
 
-`:scoped` - Applies to `&gt;script> tags only. When `hcx` evaluates scripts the `this` value for the script will be set to the parent element of the script and the `data` varable will be 
-available. Also see `shadow` above where the script gets automatically scoped to the shadow root.
+`:remove` - If `true`, unlike the attribute `hidden` or the style `display:none`, the node and its children are not fully processed and the node is actually removed from the DOM. 
+This is typically facilitated via template resolution, e.g. `<div :remove="${new Date().getHours()<12}">Afternoon message</div>`. It is primarilly useful in lightening the payload
+when doing server side rendering, or lightening the processing for large nested DOM nodes.
+
+`:scoped` - When `hcx` evaluates JavaScript scripts (not `text/hcx` scripts) the `this` value for the script will be set to the parent element of the script and the `data` variable will be 
+available. Also see `shadow` above where the script automatically gets a `shadowHost` variable, even if not scoped. The example `./examples/scopesandshadows.html` illustrates how this works.
+
+```
+<html>
+<head>
+	<script src="../nano-hcx.js" type="text/javascript"></script>
+	<script>
+		var data = {name:"joe",age:27,children:["mary","jane","jack"]};
+		var children = [];
+	</script>
+	<template id="example">
+		<style>
+			p { font-size: 150% }
+		</style>
+		<p>Larger font</p>
+		<script :scoped>
+			children = data.children;
+			var shadowVar = "secret";
+			console.log(shadowHost);
+			console.log(this);
+			console.log(shadowVar);
+		</script>
+	</template>
+</head>
+<body onload="nHCX.render('#app',{data,scripts:true,shadow:'open',source:document.getElementById('example')})">
+	<div id="app"></div>
+	<p>Normal font. Open debugger to see output.</p>
+	<script>
+		setTimeout(() => { console.log(children);console.log('shadowVar type:',typeof(shadowVar))},1000)
+	</script>
+</body>
+</html>
+```
 
 # Advanced Examples
 
@@ -279,5 +322,7 @@ Per the API description, scripts can be scoped to their containg element and exe
 `nano-hcx` was developed while `hcx` was in BETA and will serve as the core of the production release of `hcx`.
 
 # Release History (Reverse Chronological Order)
+
+2020-06-24 v0.0.2 - Fixed issue with undefined `source'. Enhanced documentation and examples.
 
 2020-06-23 v0.0.1 - First public release.

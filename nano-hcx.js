@@ -56,9 +56,8 @@
 				}
 			});
 		},
-		_r = (target,{data,scripts,sanitize,source,parent,...rest}={}) => {
+		_r = (target,{data,shadowHost,scripts,sanitize,source,parent,...rest}={}) => {
 			data || (data={});
-			source || (source=target.cloneNode(true));
 			let arender;
 			if([].slice.call(source.attributes||[]).some(attribute => attribute.value.includes("${"))) {
 				arender = (target) => {
@@ -78,9 +77,8 @@
 					N = parent || target.parentNode;
 					const sanitized = sanitize(_rT.call(N,source.textContent,{data,sanitize,...rest})||"",opts),
 						fragment = _ps(sanitized,"text/html"),
-						hb = sanitized.includes("<head>") || sanitized.includes("<body>") || !fragment.head || !fragment.body;
-					fragment.normalize();
-					const nodes = hb ? [].slice.call(fragment.childNodes) : [].slice.call(fragment.head.childNodes).concat([].slice.call(fragment.body.childNodes)),
+						hb = sanitized.includes("<head>") || sanitized.includes("<body>") || !fragment.head || !fragment.body,
+						nodes = hb ? [].slice.call(fragment.childNodes) : [].slice.call(fragment.head.childNodes).concat([].slice.call(fragment.body.childNodes)),
 						oldid = target._hcxid_,
 						id = Math.random();
 					let child;
@@ -89,22 +87,22 @@
 						else N.insertBefore(child,target);
 						child._hcxid_  = id;
 					}
-					[].slice.call(N.childNodes).forEach(child => child._hcxid_!==oldid || child.remove());
+					if(!parent) N.removeChild(target);
+					[].slice.call(N.childNodes).forEach(child => !child._hcxid_ || child._hcxid_!==oldid || child.remove());
 					_renderers.set(N,() => f(child));
 					N = null;
 				};
 				const arenderer = _renderers.get(target.parentNode);
 				f(target);
 			} else if(source.tagName==="SCRIPT") {
-				const type = source.getAttribute("type");
-				if(scripts && [null,"","text/javascript","application/javascript"].includes(type)) {
+				if(scripts && [null,"","text/javascript","application/javascript"].includes(source.getAttribute("type"))) {
 					const f = (target) => {
 						N = parent || target.parentNode;
 						const scoped = source.hasAttribute(":scoped"),
 							code = sanitize(source.textContent,opts);
-						if(code && (scoped || source.textContent!==target.textContent)) {
-							if(scoped) Function("data","with(data) { " + code + "}").call(N,data)
-							else Function("data","with(data) { " + code + "}")(data)
+						if(code && (scoped || shadowHost || source.textContent!==target.textContent)) {
+							if(scoped) Function("data","shadowHost",code).call(N,data,shadowHost)
+							else Function("shadowHost",code)(shadowHost)
 						}
 						_renderers.set(N,() => f(target));
 						N = null;
@@ -116,8 +114,8 @@
 				let i = 0;
 				const max = source.childNodes.length;
 				for(const child of source.childNodes) {
-					if(target.childNodes[i]) _r(target.childNodes[i],{data,scripts,sanitize,source:child,...rest});
-					else _r(child,{data,scripts,sanitize,source:child,parent:target,...rest});
+					if(target.childNodes[i]) _r(target.childNodes[i],{data,shadowHost,scripts,sanitize,source:child,...rest});
+					else _r(child,{data,shadowHost,scripts,sanitize,source:child,parent:target,...rest});
 					if(i>=max) break;
 					i++;
 				}
@@ -126,19 +124,22 @@
 			return target;
 		},
 		render = (targets,{root,source,shadow,scripts,data,parser,sanitize,attributeHandler,resolver,...rest}={}) => {
+			// some minimixers will not work if handed this many defaults as part of function signature
 			root || (root=typeof(document)!=="undefined"?document:targets);
 			parser || (parser=new DOMParser());
 			sanitize || (sanitize=typeof(DOMPurify)!=="undefined" ? DOMPurify.sanitize : h=>h);
 			_ps = parser.parseFromString.bind(parser);
 			if(attributeHandler) _hA = attributeHandler;
 			if(resolver) _rT = resolver;
-			if(!source && targets && targets.cloneNode) source = targets;
-			targets = (typeof(targets)==="string" ? root.querySelectorAll(targets) : Array.isArray(targets) ? targets : [targets]);
-			if(typeof(source)==="string") {
-				if(!source.includes("${")) return source;
-				source = _ps(source,"text/xml");
-			} else source = source.cloneNode(true);
-			for(const target of targets) _rA(() => _r(shadow ? target.attachShadow({mode:shadow}) : target,{data,scripts,sanitize,source,...rest}))
+			targets = (typeof(targets)==="string" ? [].slice.call(root.querySelectorAll(targets)) : Array.isArray(targets) ? targets : [targets]);
+			if(!source && targets.length==1 && targets[0].cloneNode) source = targets[0];
+			if(source.tagName==="TEMPLATE") source = source.innerHTML;
+			if(typeof(source)==="string") source = _ps(source,"text/html"); //"text/xml"
+			else source = source.cloneNode(true);
+			for(const target of targets) {
+				let shadowHost = shadow ? target : undefined;
+				_rA(() => _r(shadow ? target.attachShadow({mode:shadow}) : target,{data,shadowHost,scripts,sanitize,source,...rest}))
+			}
 			return targets;
 		};
 	typeof(window)==="undefined" || (window.nHCX = {reactor,render});
