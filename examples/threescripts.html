@@ -1,0 +1,30 @@
+<html>
+<head>
+<script src="../nano-hcx.js" type="text/javascript"></script>
+<script>
+	var data = {name:"joe",age:27,children:["mary","jane","jack"]};
+</script>
+</head>
+<body onload="nHCX.render(document.body,{data})">
+	${name} has these children:
+	<script type="text/hcx">
+		<table>
+		${
+			children.reduce((accum,item) => accum +=`<tr><td>${item}</td></tr>`,"")
+		}
+		</table>
+	</script>
+	<script type="text/hcx">
+		<table>
+		${
+			children.reduce((accum,item) => accum +=`<tr><td>${item}</td></tr>`,"")
+		}
+		</table>
+	</script>
+	<script type="text/hcx">
+	${
+		children.join(",")
+	}
+	</script>
+	</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "nano-hcx",
+  "description": "HTML Compiler Extensions",
+  "version": "0.0.1",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Simon Y. Blackwell",
+      "email": "syblackwell@anywhichway.com"
+    }
+  ],
+  "main": "nano-hcx",
+  "scripts": {},
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "express": "^4.17.1",
+    "mocha": "^8.0.1"
+  },
+  "dependencies": {
+    "jsdom": "^16.2.2"
+  },
+  "keywords": [
+    "tlx",
+    "react",
+    "angular",
+    "svelte",
+    "vue",
+    "hyperApp",
+    "uhtml",
+    "lighterhtml",
+    "hypeHTML"
+  ],
+  "readmeFilename": "README.md"
+}
