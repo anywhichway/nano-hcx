@@ -1,7 +1,7 @@
 {
   "name": "nano-hcx",
   "description": "HTML Compiler Extensions",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "contributors": [
     {
@@ -12,6 +12,7 @@
   "main": "nano-hcx",
   "scripts": {},
   "devDependencies": {
+    "benchtest": "^2.0.4",
     "chai": "^4.2.0",
     "express": "^4.17.1",
     "mocha": "^8.0.1"

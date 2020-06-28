@@ -24,7 +24,7 @@
 		}, // replaceable with attributeHandler
 		_rT = function(text,{data}) { return text.includes("${") ? Function("_","try { with(_) { return `" + text + "`} } catch(e) { ; }").call(this,data) : text }; // replaceable with resolver
 	const _renderers = new WeakMap(),
-		_rA = typeof(requestAnimationFrame)!=="undefined" ? requestAnimationFrame : cb => cb(),
+		_rA = typeof(requestAnimationFrame)!=="undefined" ? (cb) => { return new Promise((resolve) => requestAnimationFrame(() => resolve(cb()))) } : cb => cb(),
 		_p = (nodes) => {
 			!nodes || _rA(() => {
 						for(var node of nodes) node.isConnected ? _renderers.get(node)(node)  : nodes.delete(node);
@@ -73,23 +73,25 @@
 			const opts = scripts ?  {FORCE_BODY:true,ADD_TAGS:["script"]} : undefined;
 			if((source.tagName==="SCRIPT" && source.getAttribute("type")==="text/hcx") || (source.nodeType===3 && source.textContent.includes("$"))) {
 				const f = (target) => {
-					!arenderer || arenderer(target.parentNode);
+					!arenderer || arenderer();
 					N = parent || target.parentNode;
-					const sanitized = sanitize(_rT.call(N,source.textContent,{data,sanitize,...rest})||"",opts),
-						fragment = _ps(sanitized,"text/html"),
-						hb = sanitized.includes("<head>") || sanitized.includes("<body>") || !fragment.head || !fragment.body,
-						nodes = hb ? [].slice.call(fragment.childNodes) : [].slice.call(fragment.head.childNodes).concat([].slice.call(fragment.body.childNodes)),
-						oldid = target._hcxid_,
-						id = Math.random();
-					let child;
-					for(child of nodes) {
-						if(parent) N.appendChild(child);
-						else N.insertBefore(child,target);
-						child._hcxid_  = id;
+					if(N) {
+						const sanitized = sanitize(_rT.call(N,source.textContent,{data,sanitize,...rest})||"",opts),
+							fragment = _ps(sanitized,"text/html"),
+							hb = sanitized.includes("<head>") || sanitized.includes("<body>") || !fragment.head || !fragment.body,
+							nodes = hb ? [].slice.call(fragment.childNodes) : [].slice.call(fragment.head.childNodes).concat([].slice.call(fragment.body.childNodes)),
+							oldid = target._hcxid_,
+							id = Math.random();
+						let child;
+						for(child of nodes) {
+							if(parent) N.appendChild(child);
+							else N.insertBefore(child,target);
+							child._hcxid_  = id;
+						}
+						if(!parent) N.removeChild(target);
+						[].slice.call(N.childNodes).forEach(child => !child._hcxid_ || child._hcxid_!==oldid || child.remove());
+						_renderers.set(N,() => f(child));
 					}
-					if(!parent) N.removeChild(target);
-					[].slice.call(N.childNodes).forEach(child => !child._hcxid_ || child._hcxid_!==oldid || child.remove());
-					_renderers.set(N,() => f(child));
 					N = null;
 				};
 				const arenderer = _renderers.get(target.parentNode);
@@ -123,7 +125,7 @@
 			}
 			return target;
 		},
-		render = (targets,{root,source,shadow,scripts,data,parser,sanitize,attributeHandler,resolver,...rest}={}) => {
+		render = async (targets,{root,source,shadow,scripts,data,parser,sanitize,attributeHandler,resolver,...rest}={}) => {
 			// some minimixers will not work if handed this many defaults as part of function signature
 			root || (root=typeof(document)!=="undefined"?document:targets);
 			parser || (parser=new DOMParser());
@@ -133,14 +135,17 @@
 			if(resolver) _rT = resolver;
 			targets = (typeof(targets)==="string" ? [].slice.call(root.querySelectorAll(targets)) : Array.isArray(targets) ? targets : [targets]);
 			if(!source && targets.length==1 && targets[0].cloneNode) source = targets[0];
-			if(source.tagName==="TEMPLATE") source = source.innerHTML;
-			if(typeof(source)==="string") source = _ps(source,"text/html"); //"text/xml"
+			if(source.tagName==="TEMPLATE") source = document.createTextNode(source.innerHTML);
+			if(typeof(source)==="string") source = document.createTextNode(source); //_ps(source,"text/html"); //"text/xml"
 			else source = source.cloneNode(true);
-			for(const target of targets) {
+			const promises = [];
+			for(let target of targets) {
 				let shadowHost = shadow ? target : undefined;
-				_rA(() => _r(shadow ? target.attachShadow({mode:shadow}) : target,{data,shadowHost,scripts,sanitize,source,...rest}))
+				!shadow || (target = target.shadowRoot || target.attachShadow({mode:shadow}));
+				_renderers.delete(target);
+				promises.push(_rA(() => _r(target,{data,shadowHost,scripts,sanitize,source,...rest})))
 			}
-			return targets;
+			return Promise.all(promises);
 		};
 	typeof(window)==="undefined" || (window.nHCX = {reactor,render});
 	typeof(module)==="undefined" || (module.exports = {reactor,render});

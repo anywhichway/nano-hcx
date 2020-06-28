@@ -10,7 +10,7 @@
 	<ul>
 	<script type="text/hcx">
 	${
-		children.reduce((accum,item) => accum +=`<li>${item}</li>`,"")
+		children.reduce((accum,item) => {debugger; return accum +=`<li>${item}</li>`;},"")
 	}
 	</script>
 	</ul>

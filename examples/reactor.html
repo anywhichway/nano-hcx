@@ -5,7 +5,7 @@
 	var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
 </script>
 </head>
-<body onload="nHCX.render(document.body,{data})[0].removeAttribute('hidden')" hidden>
+<body onload="nHCX.render(document.body,{data}).then(targets => targets[0].removeAttribute('hidden'))" hidden>
 	${name} has these children:
 	<ul>
 	<script type="text/hcx">

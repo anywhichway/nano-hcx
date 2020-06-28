@@ -60,11 +60,13 @@ not necessary.
 
 5) Does not require a build environment/pre-compilation process.
 
-6) Supports server side rendering via a pre-built Express rendering engine.
+6) Allows direct use of the JavaScript debugger in templates.
 
-7) Sanitizes HTML using DOMPurify or a sanitizer of your choice.
+7) Supports server side rendering via a pre-built Express rendering engine.
 
-8) Is far smaller, and we think simpler and more flexible, than many other options.
+8) Sanitizes HTML using DOMPurify or a sanitizer of your choice.
+
+9) Is far smaller, and we think simpler and more flexible, than many other options.
 
 # Installation
 
@@ -143,12 +145,12 @@ in your use of `render` than providing an entire document body.
 ```html
 <html>
 <head>
-	<script src="../nano-hcx.js" type="text/javascript"></script>
-	<script>
-		var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
-	</script>
+<script src="../nano-hcx.js" type="text/javascript"></script>
+<script>
+	var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
+</script>
 </head>
-<body onload="nHCX.render(document.body,{data})[0].removeAttribute('hidden')" hidden>
+<body onload="nHCX.render(document.body,{data}).then(targets => targets[0].removeAttribute('hidden'))" hidden>
 	${name} has these children:
 	<ul>
 	<script type="text/hcx">
@@ -163,13 +165,13 @@ in your use of `render` than providing an entire document body.
 			data.children[0] = "jim";
 		},1000);
 	</script>
-</body>
+	</body>
 </html>
 ```
 
 # API
 
-`render(target(s)[,{source,data,root,shadow,sanitize,scripts,...rest}])` returns an array of `target(s)` in a resolved state.
+`render(target(s)[,{source,data,root,shadow,sanitize,scripts,...rest}])` returns a Promise for an array of `target(s)` in a resolved state.
 
 Replaces any `${ ... }` delimited content the `source` and inserts the result into the `target(s)`. During processing, `this` is bound to the containing element.
 
@@ -259,6 +261,40 @@ available. Also see `shadow` above where the script automatically gets a `shadow
 
 # Advanced Examples
 
+You can insert `debugger` statements in your templates as shown in `./examples/debugger.html`.
+
+```html
+<html>
+<head>
+<script src="../nano-hcx.js" type="text/javascript"></script>
+<script>
+	var data = nHCX.reactor({name:"joe",age:27,children:["mary","jane","jack"]});
+</script>
+</head>
+<body onload="nHCX.render(document.body,{data,scripts:true})">
+	${name} has these children:
+	<ul>
+	<script type="text/hcx">
+	${
+		children.reduce((accum,item) => {debugger; return accum +=`<li>${item}</li>`;},"")
+	}
+	</script>
+	</ul>
+	<div id="app">
+	<script :scoped>
+		alert(`My id is ${this.id}. The first child is ${data.children[0]}`);
+	</script>
+	</div>
+	<script>
+		setTimeout(() => {
+			alert("Ready for change?");
+			data.children[0] = "jim";
+		},1000);
+	</script>
+	</body>
+</html>
+```
+
 There is a pre-built Express rendering engine available in the file `express.js`. This can be added to Express as shown in `./examples/express/index.js`.
 
 ```javascript
@@ -283,7 +319,7 @@ app.get("/*", (req, res) => {
 app.listen(port, () => console.log(`HCX example app listening at http://localhost:${port}`));
 ```
 
-Per the API description, scripts can be scoped to their containg element and executed as show in `./examples/script.html`
+Per the API description, scripts can be scoped to their containing element and executed as shown in `./examples/script.html`
 
 ```html
 <html>
@@ -304,7 +340,7 @@ Per the API description, scripts can be scoped to their containg element and exe
 	</ul>
 	<div id="app">
 	<script :scoped>
-		alert(`My id is ${this.id}. The first child is ${children[0]}`);
+		alert(`My id is ${this.id}. The first child is ${data.children[0]}`);
 	</script>
 	</div>
 	<script>
@@ -322,6 +358,8 @@ Per the API description, scripts can be scoped to their containg element and exe
 `nano-hcx` was developed while `hcx` was in BETA and will serve as the core of the production release of `hcx`.
 
 # Release History (Reverse Chronological Order)
+
+2020-06-28 v0.0.3 - Added unit tests. Enhanced docs. Made `render` asynchronous.
 
 2020-06-24 v0.0.2 - Fixed issue with undefined `source'. Enhanced documentation and examples.
 
