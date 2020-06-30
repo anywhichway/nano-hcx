@@ -359,6 +359,8 @@ Per the API description, scripts can be scoped to their containing element and e
 
 # Release History (Reverse Chronological Order)
 
+2020-06-30 v0.0.4 - Added unit tests.
+
 2020-06-28 v0.0.3 - Added unit tests. Enhanced docs. Made `render` asynchronous.
 
 2020-06-24 v0.0.2 - Fixed issue with undefined `source'. Enhanced documentation and examples.
